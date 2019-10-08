@@ -1,16 +1,14 @@
 {
-  "name": "audit-trail",
-  "version": "0.1.2",
-  "description": "This is the official Javascript package for audit trail for TM30 global",
-  "main": "index.js",
+  "name": "amqp-library",
+  "version": "0.1.1",
+  "description": "This is a simplified version of amqp javascript library",
+  "main": "src/RabbitMQ.js",
   "scripts": {
     "test": "mocha --reporter nyan"
   },
   "keywords": [
-    "audit",
-    "trail",
-    "audit",
-    "trail",
+    "rabbitmq",
+    "queue",
     "tm30"
   ],
   "author": "TM30",
@@ -21,7 +19,8 @@
     "uuid": "^3.3.3"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "^7.3.0",
+    "amqplib": "^0.5.5",
+    "debug": "^4.1.1",
     "dotenv": "^8.1.0"
   }
 }

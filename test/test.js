@@ -2,37 +2,55 @@
 require("dotenv").config();
 const expect = require('chai').expect;
 const audit = require("../index");
-describe('# Test Save into elasticsearch', function () {
-    it('should save the payload', async function () {
-        const payload = await audit.trail("An Activity Occurred", "Activity");
-        expect(payload.statusCode).to.be.equal(201);
-        expect(payload.body._index).to.be.equal(process.env.AUDIT_INDEX);
-        expect(payload.body.result).to.be.equal("created");
-        console.log(JSON.stringify(payload));
-    });
-});
-
-
-describe('# Test Fetch trail from ES', function () {
-    it.only('should fetch the payload using a required query', async function () {
-        const payload = await audit.fetch({}, 0, 50);
-        expect(payload.data).to.be.an("array");
-        expect(payload.data.length).to.be.equal(payload.total);
-        console.log(JSON.stringify(payload));
+const RabbitMQ = require("../src/RabbitMQ");
+const rabbitMQ = new RabbitMQ();
+const channelName = "test-channel";
+describe('# Test AMPQ connection', function () {
+    let channel = null;
+    let connection = null;
+    before(async function() {
+        connection = await rabbitMQ.init();
+        channel = await rabbitMQ.createChannel(channelName, {
+            durable: true
+        });
     });
 
+    it("Should Create A Channel", async () => {
+        expect(connection).to.not.be.null;
+        expect(channel).to.not.be.null;
+    });
 
-    it('should fetch the payload using a custom query', async function () {
-        const query = {
-            "query": {"bool": {}},
-            "from": 0,
-            "size": "10",
-            "sort": [{"timestamp": {"order": "desc", "unmapped_type": "date"}}]
+    it("Should Create A Channel", async () => {
+        expect(connection).to.not.be.null;
+        expect(channel).to.not.be.null;
+    });
+
+    it("Should Push data to the queue", async () => {
+        const payload = {
+            timestamp: Date.now(),
+            name: "A Name",
+            email: "Email"
         };
-        const payload = await audit.customQuery(query);
-        // console.log("Payload", JSON.stringify(payload), payload.data.length, payload.total);
-        //start assert
-        expect(payload.data).to.be.an("array");
-        expect(payload.data.length).to.be.equal(payload.total);
+        const data = await rabbitMQ.queue(payload,{persistent: true});
+        console.log("Payload", data);
+        expect(connection).to.not.be.null;
+        expect(channel).to.not.be.null;
+        expect(data).to.not.be.an("object");
+        expect(data).to.be.equal(true);
+    });
+
+    it("Should listen for data coming into the queue queue", async () => {
+        rabbitMQ.listen({noAck: false}, (payload) => {
+            expect(payload).to.not.be.null;
+            expect(payload.content).to.not.be.null;
+            expect(payload.content.toString()).to.not.be.null;
+            channel.ack(payload);
+            expect(connection).to.not.be.null;
+            expect(channel).to.not.be.null;
+        });
+    });
+
+    after(async () => {
+       await rabbitMQ.close() ;
     });
 });
