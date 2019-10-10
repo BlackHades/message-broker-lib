@@ -9,7 +9,7 @@ RabbitMQ
     "dotenv": "^8.1.0"
 }
 ```
-```npm install audit-trail```
+```npm install amqp-library```
 ## Requirements
 - set the rabbitmq url in your .env.
 ```dotenv
@@ -53,7 +53,7 @@ const payload = {
             name: "A Name",
             email: "Email"
         };
-const data = await rabbitMQ.queue(payload,{persistent: true});
+const data = await rabbitMQ.queue(channelName, payload,{persistent: true});
 console.log("Payload", data); //{data: true}
 
 ```
@@ -66,7 +66,7 @@ const channel = await rabbitMQ.createChannel(channelName, {
     durable: true //options: checkout https://www.rabbitmq.com for more options
 });
 
-rabbitMQ.listen({
+rabbitMQ.listen(channelName,{
     noAck: false // listen options:checkout https://www.rabbitmq.com for more options
 }, (payload) => {
     channel.ack(payload); //acknowledge that processing has been done and remove from queue
