@@ -20,18 +20,13 @@ describe('# Test AMPQ connection', function () {
         expect(channel).to.not.be.null;
     });
 
-    it("Should Create A Channel", async () => {
-        expect(connection).to.not.be.null;
-        expect(channel).to.not.be.null;
-    });
-
     it("Should Push data to the queue", async () => {
         const payload = {
             timestamp: Date.now(),
             name: "A Name",
             email: "Email"
         };
-        const data = await rabbitMQ.queue(payload,{persistent: true});
+        const data = await rabbitMQ.queue(channelName, payload,{persistent: true});
         console.log("Payload", data);
         expect(connection).to.not.be.null;
         expect(channel).to.not.be.null;
@@ -40,7 +35,7 @@ describe('# Test AMPQ connection', function () {
     });
 
     it("Should listen for data coming into the queue queue", async () => {
-        rabbitMQ.listen({noAck: false}, (payload) => {
+        rabbitMQ.listen(channelName,{noAck: false}, (payload, channel) => {
             expect(payload).to.not.be.null;
             expect(payload.content).to.not.be.null;
             expect(payload.content.toString()).to.not.be.null;

@@ -24,24 +24,26 @@ class RabbitMQ {
         }
         this.channel = await this.connection.createChannel();
         this.channel.assertQueue(channelName, options);
-        this.channelName = channelName;
         return this.channel;
     }
 
-    async queue(payload, options = {}) {
+    async queue(channelName, payload, options = {}) {
         if (!payload)
             throw new Error("Empty Payload");
-        return await this.channel.sendToQueue(this.channelName, Buffer.from(JSON.stringify(payload)), options, {persistent: true});
+
+        return await this.channel.sendToQueue(channelName, Buffer.from(JSON.stringify(payload)), options, {persistent: true});
     }
 
-    listen(options = {}, callback = null) {
+    listen(channelName, options = {}, callback = null) {
         if (typeof callback != "function")
             throw  new Error("Callback must be a function");
         this.channel.prefetch(1);
 
-        this.channel.consume(this.channelName, (payload) => {
+        this.channel.consume(channelName, (payload) => {
             callback(payload, this.channel);
         }, options);
+
+        return this.channel;
     }
 
     close() {
