@@ -57,6 +57,45 @@ const data = await rabbitMQ.queue(channelName, payload,{persistent: true});
 console.log("Payload", data); //{data: true}
 
 ```
+-- To assert/create an exchange 
+```javascript
+const exchangeName = "logs";
+const rabbitMQ = new RabbitMQ();
+const connection = await rabbitMQ.init();
+const exchange =  await rabbitMQ.assertExchange(exchangeName,"fanout", {durable: true}); //exchange types includes fanout, direct, topic and header.checkout https://www.rabbitmq.com for more exchange types. 
+console.log({exchange});
+//Exchange { exchange: { exchange: 'test-exchange' } }
+
+```
+-- To Publish to an exchange
+```javascript
+const exchangeName = "logs";
+const rabbitMQ = new RabbitMQ();
+const connection = await rabbitMQ.init();
+const exchange =  await rabbitMQ.assertExchange(exchangeName,"fanout", {durable: true});
+const push = await rabbitMQ.publish(exchangeName,'',{
+    timestamp: Date.now(),
+    name: "A Name",
+    email: "Email"
+});
+
+console.log({push});
+//{ push: true }
+```
+
+-- To create/assert A queue
+```javascript
+const exchangeName = "logs";
+const queueName = "test-exchange-queue";
+const queueOption = {exclusive: true};
+const bindKey = "route"; //read more on routing here https://rabbitmq.com/tutorials/tutorial-four-javascript.html
+const rabbitMQ = new RabbitMQ();
+const connection = await rabbitMQ.init();
+const queue =  await rabbitMQ.assertQueue(exchangeName, queueName, queueOption, bindKey);
+console.log({queue});
+//   queue: { queue: 'test-exchange-queue', messageCount: 0, consumerCount: 0 }
+
+```
 -- To listen to a queue and pull data for processing
 ```javascript
 //(async/await)

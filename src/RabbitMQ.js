@@ -8,8 +8,13 @@ class RabbitMQ {
         this.connection = null;
         this.channel = null;
         this.channelName = null;
+        this.init = this.init.bind(this);
         this.createChannel = this.createChannel.bind(this);
-        // return this.connection;
+        this.queue = this.queue.bind(this);
+        this.assertExchange = this.assertExchange.bind(this);
+        this.assertQueue = this.assertQueue.bind(this);
+        this.publish = this.publish.bind(this);
+        this.listen = this.listen.bind(this);
     }
 
     async init(rabbitMQUrl) {
@@ -23,6 +28,8 @@ class RabbitMQ {
             await this.init();
         }
         this.channel = await this.connection.createChannel();
+        if(!channelName || channelName.trim() == "")
+            return this.channel;
         this.channel.assertQueue(channelName, options);
         return this.channel;
     }
@@ -34,9 +41,24 @@ class RabbitMQ {
         return await this.channel.sendToQueue(channelName, Buffer.from(JSON.stringify(payload)), options, {persistent: true});
     }
 
+    async assertExchange(exchangeName, exchangeType = "fanout", option = {}) {
+        return await this.channel.assertExchange(exchangeName, exchangeType, option);
+    }
+
+    async assertQueue(exchangeName, queueName = "", queueOption = {}, bindKey = ''){
+        let queue = await this.channel.assertQueue(queueName, queueOption);
+        await this.channel.bindQueue(queue.queue, exchangeName, bindKey);
+        return queue;
+    }
+
+    publish(exchangeName, routeKey = "", payload) {
+        return this.channel.publish(exchangeName, routeKey, Buffer.from(JSON.stringify(payload)));
+    }
+
     listen(channelName, options = {}, callback = null) {
         if (typeof callback != "function")
             throw  new Error("Callback must be a function");
+
         this.channel.prefetch(1);
 
         this.channel.consume(channelName, (payload) => {
