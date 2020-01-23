@@ -18,6 +18,8 @@ class RabbitMQ {
     }
 
     async init(rabbitMQUrl) {
+        rabbitMQUrl = rabbitMQUrl || process.env.RABBITMQ_URL;
+        rabbitMQUrl = `${rabbitMQUrl}?heartbeat=15`;
         this.connection = await amqp.connect(rabbitMQUrl || process.env.RABBITMQ_URL);
         return this.connection;
     }

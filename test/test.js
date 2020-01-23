@@ -16,7 +16,7 @@ describe('# Test AMPQ connection', function () {
         });
     });
 
-    it("Should Create A Channel", async () => {
+    it.only("Should Create A Channel", async () => {
         expect(connection).to.not.be.null;
         expect(channel).to.not.be.null;
     });
@@ -48,7 +48,7 @@ describe('# Test AMPQ connection', function () {
 
 
 
-    it.only("Should assert an exchange", async () => {
+    it("Should assert an exchange", async () => {
         const exchange =  await rabbitMQ.assertExchange(exchangeName,"fanout", {durable: true});
         expect(exchange).to.not.be.null;
         expect(exchange).to.be.an("object");
