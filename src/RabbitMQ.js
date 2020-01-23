@@ -18,10 +18,15 @@ class RabbitMQ {
     }
 
     async init(rabbitMQUrl) {
-        rabbitMQUrl = rabbitMQUrl || process.env.RABBITMQ_URL;
-        rabbitMQUrl = `${rabbitMQUrl}?heartbeat=15`;
-        this.connection = await amqp.connect(rabbitMQUrl || process.env.RABBITMQ_URL);
-        return this.connection;
+        try{
+            rabbitMQUrl = rabbitMQUrl || process.env.RABBITMQ_URL;
+            rabbitMQUrl = `${rabbitMQUrl}?heartbeat=15`;
+            this.connection = await amqp.connect(rabbitMQUrl || process.env.RABBITMQ_URL);
+            return this.connection;
+        }catch (e) {
+            console.log("Reconnecting RabbitMQ");
+            setTimeout(() => this.init(rabbitMQUrl), 1000);
+        }
     }
 
 
@@ -44,7 +49,7 @@ class RabbitMQ {
     }
 
     async assertExchange(exchangeName, exchangeType = "fanout", option = {}) {
-        return await this.channel.assertExchange(exchangeName, exchangeType, option);
+        return this.channel.assertExchange(exchangeName, exchangeType, option);
     }
 
     async assertQueue(exchangeName, queueName = "", queueOption = {}, bindKey = ''){
