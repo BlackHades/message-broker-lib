@@ -24,16 +24,16 @@ class RabbitMQ {
             this.connection = await amqp.connect(rabbitMQUrl || process.env.RABBITMQ_URL);
             return this.connection;
         }catch (e) {
-            console.log("Reconnecting RabbitMQ");
-            setTimeout(() => this.init(rabbitMQUrl), 1000);
+            console.log("Reconnecting RabbitMQ",e);
+            return this.init(rabbitMQUrl);
         }
     }
 
 
     async createChannel(channelName, options = {}) {
-        if (!this.connection) {
-            await this.init();
-        }
+        if (!this.connection)
+             await this.init();
+
         this.channel = await this.connection.createChannel();
         if(!channelName || channelName.trim() == "")
             return this.channel;
