@@ -62,14 +62,14 @@ class RabbitMQ {
         return this.channel.publish(exchangeName, routeKey, Buffer.from(JSON.stringify(payload)));
     }
 
-    listen(channelName, options = {}, callback = null) {
+    listen(channelName, options = {}, callback = null, prefetch= 1 ) {
         if (typeof callback != "function")
             throw  new Error("Callback must be a function");
 
-        this.channel.prefetch(1);
+        this.channel.prefetch(prefetch);
 
         this.channel.consume(channelName, (payload) => {
-            callback(payload, this.channel);
+            return callback(payload, this.channel);
         }, options);
 
         return this.channel;
