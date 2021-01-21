@@ -8,6 +8,7 @@ class RabbitMQ {
         this.connection = null;
         this.channel = null;
         this.channelName = null;
+        this.retryCountBeforeExit = 10;
         this.init = this.init.bind(this);
         this.createChannel = this.createChannel.bind(this);
         this.queue = this.queue.bind(this);
@@ -17,15 +18,33 @@ class RabbitMQ {
         this.listen = this.listen.bind(this);
     }
 
-    async init(rabbitMQUrl) {
+    /**
+     *
+     * @param {Object} options
+     * @param {string} options.rabbitMQURL
+     * @param {number} options.retryCountBeforeExit
+     * @param {number} options.heartbeat
+     * @return {Promise<null|*|undefined>}
+     */
+    async init(options = {}) {
+        let {rabbitMQURL, heartbeat = 60} = options;
         try{
-            rabbitMQUrl = rabbitMQUrl || process.env.RABBITMQ_URL;
-            rabbitMQUrl = `${rabbitMQUrl}?heartbeat=15`;
-            this.connection = await amqp.connect(rabbitMQUrl || process.env.RABBITMQ_URL);
+            if(rabbitMQURL){
+                rabbitMQURL = `${rabbitMQURL}?heartbeat=${heartbeat}`;
+            }
+
+            rabbitMQURL = rabbitMQURL || process.env.RABBITMQ_URL;
+            this.connection = await amqp.connect(rabbitMQURL);
             return this.connection;
         }catch (e) {
+            if(!this.retryCountBeforeExit) {
+                console.log("Exiting....");
+                process.exit(1);
+            }
+            this.retryCountBeforeExit -= 1;
+            console.log("retryCountBeforeExit",this.retryCountBeforeExit);
             console.log("Reconnecting RabbitMQ",e);
-            return this.init(rabbitMQUrl);
+            return this.init(rabbitMQURL);
         }
     }
 
@@ -42,10 +61,10 @@ class RabbitMQ {
     }
 
     async queue(channelName, payload, options = {}) {
-        if (!payload)
-            throw new Error("Empty Payload");
-
-        return await this.channel.sendToQueue(channelName, Buffer.from(JSON.stringify(payload)), options, {persistent: true});
+        if (!payload) throw new Error("Empty Payload");
+        if(typeof payload != "string")
+            payload = JSON.stringify(payload);
+        return await this.channel.sendToQueue(channelName, Buffer.from(payload) , options, {persistent: true});
     }
 
     async assertExchange(exchangeName, exchangeType = "fanout", option = {}) {
@@ -75,14 +94,24 @@ class RabbitMQ {
         return this.channel;
     }
 
+
+    handleError(error){
+
+    }
+
     close() {
         setTimeout(() => {
             if (this.connection) {
                 debug("Closing AMPQ Connection");
-                return this.connection.close();
+                try {
+                    return this.connection.close();
+                }
+                catch (alreadyClosed) {
+                    console.log(alreadyClosed.stackAtStateChange);
+                }
             }
             return null;
-        }, 500);
+        }, 5000);
     }
 
 }
