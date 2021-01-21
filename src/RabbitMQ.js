@@ -50,22 +50,47 @@ class RabbitMQ {
     }
 
 
-    async createChannel(channelName, options = {}) {
+    async createChannel(options = {}) {
         if (!this.connection)
-             await this.init();
+            throw Error("Connection has not been made. Call the init function first");
 
-        this.channel = await this.connection.createChannel();
-        if(!channelName || channelName.trim() == "")
-            return this.channel;
-        this.channel.assertQueue(channelName, options);
-        return this.channel;
+        try{
+            this.channel = await this.connection.createChannel();
+            return {data: this.channel};
+        }catch (e) {
+            console.error(e);
+            return {error: e.message};
+        }
     }
 
-    async queue(channelName, payload, options = {}) {
-        if (!payload) throw new Error("Empty Payload");
-        if(typeof payload != "string")
-            payload = JSON.stringify(payload);
-        return await this.channel.sendToQueue(channelName, Buffer.from(payload) , options, {persistent: true});
+    /**
+     *
+     * @param {string} queueName
+     * @param {Object} options
+     * @return {Promise<null|{data: (Promise<*>|{durable: (boolean|*), ticket: number, autoDelete, exclusive, arguments: any, passive: boolean, queue: *, nowait: boolean})}|{error: *}>}
+     */
+    async createQueue(queueName, options = {}) {
+        if (!this.connection)
+            throw Error("Connection has not been initialized. Call the init function first");
+
+        try{
+            if(!queueName || queueName.trim() == "") return {error: "Queue Name Cannot Be Empty"};
+            return {data: await this.channel.assertQueue(queueName, options)};
+        }catch (e) {
+            console.error(e);
+            return {error: e.message};
+        }
+    }
+
+    async queue(channelName, payload, options = {persistent: true}) {
+        try{
+            if (!payload) throw new Error("Empty Payload");
+            if(typeof payload != "string") payload = JSON.stringify(payload);
+            return {data: await this.channel.sendToQueue(channelName, Buffer.from(payload) , options)};
+        }catch (e) {
+            console.error(e);
+            return {error: e.message};
+        }
     }
 
     async assertExchange(exchangeName, exchangeType = "fanout", option = {}) {
