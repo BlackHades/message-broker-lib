@@ -1,6 +1,6 @@
 {
-  "name": "amqp-library",
-  "version": "1.2.1",
+  "name": "message-broker-lib",
+  "version": "0.0.1",
   "description": "This is a simplified version of amqp javascript library",
   "main": "src/RabbitMQ.js",
   "scripts": {
@@ -21,7 +21,6 @@
   "dependencies": {
     "amqplib": "^0.5.5",
     "debug": "^4.1.1",
-    "dotenv": "^8.1.0",
     "nyc": "^14.1.1"
   }
 }

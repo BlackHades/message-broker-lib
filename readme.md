@@ -5,7 +5,7 @@ RabbitMQ
 ## Installation
 ```json
 "dependencies": {
-    "amqplib": "^0.5.5",
+    "message-broker-lib": "^0.0.1",
     "dotenv": "^8.1.0"
 }
 ```

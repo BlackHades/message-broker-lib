@@ -29,11 +29,12 @@ class RabbitMQ {
     async init(options = {}) {
         let {rabbitMQURL, heartbeat = 60} = options;
         try{
-            if(rabbitMQURL){
-                rabbitMQURL = `${rabbitMQURL}?heartbeat=${heartbeat}`;
-            }
+            if(!rabbitMQURL)
+                throw Error("RabbitMQ URL is required");
 
-            rabbitMQURL = rabbitMQURL || process.env.RABBITMQ_URL;
+
+
+            rabbitMQURL = `${rabbitMQURL}?heartbeat=${heartbeat}`;
             this.connection = await amqp.connect(rabbitMQURL);
             return this.connection;
         }catch (e) {
