@@ -5,8 +5,7 @@ RabbitMQ
 ## Installation
 ```json
 "dependencies": {
-    "message-broker-lib": "^0.0.1",
-    "dotenv": "^8.1.0"
+    "message-broker-lib": "^0.0.1"
 }
 ```
 ```npm install message-broker-lib```
