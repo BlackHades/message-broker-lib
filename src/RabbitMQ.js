@@ -72,8 +72,15 @@ class RabbitMQ {
             throw Error("Connection has not been initialized. Call the init function first");
 
         try{
-            if(!queueName || queueName.trim() == "") return {error: "Queue Name Cannot Be Empty"};
-            return {data: await this.channel.assertQueue(queueName, options)};
+            if(!Array.isArray(queueName)){
+                queueName = [queueName];
+            }
+            for(let name of queueName){
+                if(!name || name.trim() == "") return {error: "Queue Name Cannot Be Empty"};
+                await this.channel.assertQueue(name, options);
+            }
+            return {data: true};
+
         }catch (e) {
             console.error(e);
             return {error: e.message};
