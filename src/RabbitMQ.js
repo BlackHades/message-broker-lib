@@ -174,7 +174,12 @@ class RabbitMQ {
 
 
     requeueDeadLetter(deadLetterQueueName, queueOptions = {}, callbackFn){
-        this.listen(deadLetterQueueName, queueOptions, async (raw, channel) => {
+        this.listen(deadLetterQueueName, queueOptions, async (error, raw, channel) => {
+            if(error){
+                console.log(`=================== Error from  ${deadLetterQueueName} ==================`);
+                throw Error(error);
+                // return;
+            }
             try {
                 debug("Listening");
                 let {queue, reason, payload, ...rest} = JSON.parse(raw.content.toString());
