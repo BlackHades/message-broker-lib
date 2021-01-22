@@ -12,7 +12,7 @@ RabbitMQ
 
 ## Initialization
 ```javascript
-const RabbitMQ = require('message-broker-lib');
+const broker = require('message-broker-lib');
 //when initializing RabbitMQ, pass in the url
 const connection = await broker.init({
     rabbitMQURL: "amqp://localhost",

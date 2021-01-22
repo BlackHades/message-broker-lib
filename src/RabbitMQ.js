@@ -166,7 +166,21 @@ class RabbitMQ {
     }
 
 
-    handleError(error){
+    requeueDeadLetter(deadLetterQueueName, queueOptions = {}, callbackFn){
+        this.listen(deadLetterQueueName, queueOptions, async (raw, channel) => {
+            try {
+                debug("Listening");
+                let {queue, reason, payload, ...rest} = JSON.parse(raw.content.toString());
+                console.log("Queue", queue, reason);
+                if (!queue) return channel.ack(raw);
+                await this.queue(queue, payload, {persistent: true});
+                return channel.ack(raw);
+            } catch (e) {
+                console.log(e, JSON.stringify(e));
+                await this.queue(deadLetterQueueName, JSON.parse(raw.content.toString()), {persistent: true});
+                return channel.ack(raw);
+            }
+        }, parseInt(queueOptions?.prefetch || 1));
 
     }
 
