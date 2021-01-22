@@ -9,23 +9,17 @@ RabbitMQ
     "dotenv": "^8.1.0"
 }
 ```
-```npm install amqp-library```
-## Requirements
-- set the rabbitmq url in your .env.
-```dotenv
-RABBITMQ_URL=amqp://localhost
-```
-or
-```javascript
-//when initializing RabbitMQ, pass in the url
-rabbitMQ.init("amqp://localhost")
-.then(connection => {})
-.catch(err => {});
+```npm install message-broker-lib```
 
-```
 ## Initialization
 ```javascript
 const RabbitMQ = require('rabbitmq');
+//when initializing RabbitMQ, pass in the url
+const connection = await broker.init({
+    rabbitMQURL: "amqp://localhost",
+    heartbeat: 60 //in seconds
+})
+
 ```
 
 
@@ -33,65 +27,52 @@ const RabbitMQ = require('rabbitmq');
 - Create A Channel
 ```javascript
 //(async/await)
-const rabbitMQ = new RabbitMQ();
-const connection = await rabbitMQ.init();
-const channel = await rabbitMQ.createChannel(channelName, {
+const channel = await broker.createChannel({});
+```
+
+- Create A Queue
+```javascript
+//(async/await)
+const {error, data} = await broker.createQueue(channelName, {
     durable: true //options: checkout https://www.rabbitmq.com for more options
 });
 ```
 - To queue a data for processing
 ```javascript
 //(async/await)
-const rabbitMQ = new RabbitMQ();
-const connection = await rabbitMQ.init();
-const channel = await rabbitMQ.createChannel(channelName, {
-    durable: true //options: checkout https://www.rabbitmq.com for more options
-});
-
 const payload = {
             timestamp: Date.now(),
             name: "A Name",
             email: "Email"
         };
-const data = await rabbitMQ.queue(channelName, payload,{persistent: true});
-console.log("Payload", data); //{data: true}
+const {error, data} = await broker.queue(channelName, payload, {persistent: true});
 
 ```
 -- To assert/create an exchange 
 ```javascript
 const exchangeName = "logs";
-const rabbitMQ = new RabbitMQ();
-const connection = await rabbitMQ.init();
-const exchange =  await rabbitMQ.assertExchange(exchangeName,"fanout", {durable: true}); //exchange types includes fanout, direct, topic and header.checkout https://www.rabbitmq.com for more exchange types. 
-console.log({exchange});
-//Exchange { exchange: { exchange: 'test-exchange' } }
+const {error, data} =  await broker.assertExchange(exchangeName,"fanout", {durable: true}); //exchange types includes fanout, direct, topic and header.checkout https://www.rabbitmq.com for more exchange types. 
+console.log({error, data});
 
 ```
 -- To Publish to an exchange
 ```javascript
 const exchangeName = "logs";
-const rabbitMQ = new RabbitMQ();
-const connection = await rabbitMQ.init();
-const exchange =  await rabbitMQ.assertExchange(exchangeName,"fanout", {durable: true});
-const push = await rabbitMQ.publish(exchangeName,'',{
+const {error, data} = await broker.publish(exchangeName,'',{
     timestamp: Date.now(),
     name: "A Name",
     email: "Email"
 });
 
-console.log({push});
-//{ push: true }
 ```
 
 -- To create/assert A queue
 ```javascript
 const exchangeName = "logs";
 const queueName = "test-exchange-queue";
-const queueOption = {exclusive: true};
-const bindKey = "route"; //read more on routing here https://rabbitmq.com/tutorials/tutorial-four-javascript.html
-const rabbitMQ = new RabbitMQ();
-const connection = await rabbitMQ.init();
-const queue =  await rabbitMQ.assertQueue(exchangeName, queueName, queueOption, bindKey);
+const queueOption = {exclusive: true, autoDelete: true};//if you want temporary queue
+const bindKey = ""; //read more on routing here https://rabbitmq.com/tutorials/tutorial-four-javascript.html
+const {error, data} =  await broker.assertQueue(exchangeName, queueName, queueOption, bindKey);
 console.log({queue});
 //   queue: { queue: 'test-exchange-queue', messageCount: 0, consumerCount: 0 }
 
@@ -99,18 +80,14 @@ console.log({queue});
 -- To listen to a queue and pull data for processing
 ```javascript
 //(async/await)
-const rabbitMQ = new RabbitMQ();
-const connection = await rabbitMQ.init();
-const channel = await rabbitMQ.createChannel(channelName, {
-    durable: true //options: checkout https://www.rabbitmq.com for more options
-});
 
 rabbitMQ.listen(channelName,{
     noAck: false // listen options:checkout https://www.rabbitmq.com for more options
-}, (payload) => {
+}, (error, raw, channel) => {
+    const stringPayload = raw.content.toString();
+    const objectPayload = JSON.parse(stringPayload);
+    //....process payload .../
     channel.ack(payload); //acknowledge that processing has been done and remove from queue
-    expect(connection).to.not.be.null;
-    expect(channel).to.not.be.null;
 });
 
 //Warning: If you enable acknowledgement {noAck: false}, the next data on the queue 
@@ -119,7 +96,7 @@ rabbitMQ.listen(channelName,{
 
 -- To close a connection
 ```javascript
-    rabbitMQ.close();
+    broker.close();
 ```
 
 

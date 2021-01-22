@@ -32,8 +32,6 @@ class RabbitMQ {
             if(!rabbitMQURL)
                 throw Error("RabbitMQ URL is required");
 
-
-
             rabbitMQURL = `${rabbitMQURL}?heartbeat=${heartbeat}`;
             this.connection = await amqp.connect(rabbitMQURL);
             return this.connection;
@@ -93,31 +91,78 @@ class RabbitMQ {
         }
     }
 
+    /**
+     *
+     * @param {string} exchangeName
+     * @param {string} exchangeType (fanout, direct, topic)
+     * @param {Object} option
+     * @return {Promise<{error: *}|{data: ({data}|{error: *})}>}
+     */
     async assertExchange(exchangeName, exchangeType = "fanout", option = {}) {
-        return this.channel.assertExchange(exchangeName, exchangeType, option);
+        try{
+            return {data: await this.channel.assertExchange(exchangeName, exchangeType, option)}
+        }catch (e) {
+            console.error(e);
+            return {error: e.message};
+        }
     }
 
+    /***
+     *
+     * @param {string} exchangeName
+     * @param {string} queueName
+     * @param {string} queueOption
+     * @param {string} routingKey
+     * @return {Promise<{data: *}|{error: *}>}
+     */
     async assertQueue(exchangeName, queueName = "", queueOption = {}, bindKey = ''){
-        let queue = await this.channel.assertQueue(queueName, queueOption);
-        await this.channel.bindQueue(queue.queue, exchangeName, bindKey);
-        return queue;
+        try{
+            let queue = await this.channel.assertQueue(queueName, queueOption);
+            return {data: await this.channel.bindQueue(queue.queue, exchangeName, bindKey)};
+        }catch (e) {
+            console.error(e);
+            return {error: e.message};
+        }
     }
 
-    publish(exchangeName, routeKey = "", payload) {
-        return this.channel.publish(exchangeName, routeKey, Buffer.from(JSON.stringify(payload)));
+    /**
+     *
+     * @param {string} exchangeName
+     * @param {string} routeKey
+     * @param {string} payload
+     * @return {{headers, ticket: undefined, messageId, clusterId: undefined, priority, type, mandatory: boolean, userId, immediate: boolean, deliveryMode, appId, replyTo, contentEncoding, exchange: *, correlationId, expiration, contentType, routingKey: *, timestamp}}
+     */
+    async publish(exchangeName, routeKey = "", payload) {
+        try{
+            return {data: await this.channel.publish(exchangeName, routeKey, Buffer.from(JSON.stringify(payload)))};
+        }catch (e) {
+            console.error(e);
+            return {error: e.message};
+        }
     }
 
+    /**
+     *
+     * @param {string} channelName
+     * @param {Object} options
+     * @param {function} callback
+     * @param {number} prefetch
+     * @return {null}
+     */
     listen(channelName, options = {}, callback = null, prefetch= 1 ) {
-        if (typeof callback != "function")
-            throw  new Error("Callback must be a function");
+       try{
+           if (typeof callback != "function")
+               throw  new Error("Callback must be a function");
 
-        this.channel.prefetch(prefetch);
+           this.channel.prefetch(prefetch);
 
-        this.channel.consume(channelName, (payload) => {
-            return callback(payload, this.channel);
-        }, options);
-
-        return this.channel;
+           this.channel.consume(channelName, (payload) => {
+               return callback(null, payload, this.channel);
+           }, options);
+       }catch (e) {
+           console.error(e);
+           callback(e.message);
+       }
     }
 
 
