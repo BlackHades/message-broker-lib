@@ -43,7 +43,7 @@ class RabbitMQ {
             this.retryCountBeforeExit -= 1;
             console.log("retryCountBeforeExit",this.retryCountBeforeExit);
             console.log("Reconnecting RabbitMQ",e);
-            return this.init(rabbitMQURL);
+            return this.init(options);
         }
     }
 
