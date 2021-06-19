@@ -156,20 +156,23 @@ class RabbitMQ {
      * @param {number} prefetch
      * @return {null}
      */
-    listen(channelName, options = {}, callback = null, prefetch= 1 ) {
-       try{
-           if (typeof callback != "function")
-               throw  new Error("Callback must be a function");
+    async listen(channelName, options = {}, callback = null, prefetch= 1 ) {
+        try{
+            if (typeof callback != "function")
+                throw  new Error("Callback must be a function");
 
-           this.channel.prefetch(prefetch);
+            //rabbitmq specification: a channel per queue
+            const channel = await this.connection.createChannel();
 
-           this.channel.consume(channelName, (payload) => {
-               return callback(null, payload, this.channel);
-           }, options);
-       }catch (e) {
-           console.error(e);
-           callback(e.message);
-       }
+            channel.prefetch(prefetch);
+            channel.consume(channelName, (payload) => {
+                return callback(null, payload, channel);
+            }, options);
+        }catch (e) {
+            console.error("hereeee",e);
+            console.log("channelName",channelName);
+            callback(e.message);
+        }
     }
 
 
