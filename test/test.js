@@ -1,25 +1,40 @@
 "use strict";
 require("dotenv").config();
-const expect = require('chai').expect;
-const audit = require("../index");
-const RabbitMQ = require("../src/RabbitMQ");
+const RabbitMQ = require("../index").RabbitMQ
 const rabbitMQ = new RabbitMQ();
+
 const channelName = "test-channel";
 let exchangeName = "test-exchange";
+
 describe('# Test AMPQ connection', function () {
     let channel = null;
     let connection = null;
-    before(async function() {
+    beforeEach(async function () {
         connection = await rabbitMQ.init();
-        channel = await rabbitMQ.createChannel(channelName, {
-            durable: true
+        const {error, data} = await rabbitMQ.createChannel((channel) => {
+            return Promise.all([
+                channel.assertQueue(channelName, {durable: true})
+            ])
         });
+
+        if (error) throw error;
+        channel = data;
     });
 
-    it.only("Should Create A Channel", async () => {
-        expect(connection).to.not.be.null;
-        expect(channel).to.not.be.null;
+    it("Should Create A Channel", async () => {
+        expect(connection).not.toBe(null);
+        expect(channel).not.toBe(null);
     });
+
+    it("Should Create a  Queue", async () => {
+        const {error, data} = await rabbitMQ.createQueue(channelName + "-1", {durable: true});
+        console.log("Payload", data);
+        expect(connection).not.toBe(null);
+        expect(channel).not.toBe(null);
+        expect(error).toBe(undefined)
+        expect(data).toBe(true)
+    });
+
 
     it("Should Push data to the queue", async () => {
         const payload = {
@@ -27,60 +42,58 @@ describe('# Test AMPQ connection', function () {
             name: "A Name",
             email: "Email"
         };
-        const data = await rabbitMQ.queue(channelName, payload,{persistent: true});
-        console.log("Payload", data);
-        expect(connection).to.not.be.null;
-        expect(channel).to.not.be.null;
-        expect(data).to.not.be.an("object");
-        expect(data).to.be.equal(true);
+        const {error, data} = await rabbitMQ.queue(channelName, payload, {persistent: true});
+        expect(connection).not.toBe(null);
+        expect(channel).not.toBe(null);
+        expect(error).toBe(undefined)
+        expect(data).toBe(true)
     });
 
     it("Should listen for data coming into the queue", async () => {
-        rabbitMQ.listen(channelName,{noAck: false}, (payload, channel) => {
-            expect(payload).to.not.be.null;
-            expect(payload.content).to.not.be.null;
-            expect(payload.content.toString()).to.not.be.null;
+        rabbitMQ.listen(channelName, {noAck: false}, (payload, channel) => {
+            expect(payload).not.toBe(null);
+            expect(payload.content).not.toBe(null);
+            expect(payload.content.toString()).not.toBe(null);
             channel.ack(payload);
-            expect(connection).to.not.be.null;
-            expect(channel).to.not.be.null;
         });
+
     });
 
 
-
     it("Should assert an exchange", async () => {
-        const exchange =  await rabbitMQ.assertExchange(exchangeName,"fanout", {durable: true});
-        expect(exchange).to.not.be.null;
-        expect(exchange).to.be.an("object");
-        expect(exchange.exchange).to.be.equal(exchangeName);
-        console.log("Exchange", {exchange});
+        const {error, data} = await rabbitMQ.assertExchange(exchangeName, "fanout", {durable: true});
+        expect(error).toBe(undefined)
+        expect(data).not.toBe(null);
+        expect(data).not.toBe(null);
+        expect(data.exchange).toBe(exchangeName)
     });
 
 
     it("Should publish to an exchange", async () => {
-        const exchange =  await rabbitMQ.assertExchange(exchangeName,"fanout", {durable: true});
-        const push = await rabbitMQ.publish(exchangeName,'',{
+        const {error, data} = await rabbitMQ.assertExchange(exchangeName, "fanout", {durable: true});
+        expect(error).toBe(undefined)
+        expect(data).not.toBe(null)
+
+        const {error: pushError, data: push} = await rabbitMQ.publish(exchangeName, '', {
             timestamp: Date.now(),
             name: "A Name",
             email: "Email"
         });
-        expect(exchange).to.not.be.null;
-        expect(exchange).to.be.an("object");
-        expect(exchange.exchange).to.be.equal(exchangeName);
-        console.log("Exchange", {exchange}, {push});
+        expect(pushError).toBe(undefined)
+        expect(push).not.toBe(null)
     });
 
     it("Should assert an exchange Queue", async () => {
-        const queue =  await rabbitMQ.assertQueue(exchangeName,"test-exchange-queue");
-        expect(queue).to.not.be.null;
-        expect(queue.queue).not.null;
-        console.log("Queue", {queue});
+        const {error, data} = await rabbitMQ.assertQueue(exchangeName, channelName);
+        expect(error).toBe(undefined)
+        expect(data).not.toBe(null)
+
+        console.log("Queue", {error, data});
     });
 
 
-
     it("Should listen for data coming into the exchange queue", async () => {
-        rabbitMQ.listen("test-exchange-queue",{noAck: false}, (payload, channel) => {
+        rabbitMQ.listen("test-exchange-queue", {noAck: false}, (payload, channel) => {
             console.log(payload.content.toString());
             expect(payload).to.not.be.null;
             expect(payload.content).to.not.be.null;
@@ -91,7 +104,7 @@ describe('# Test AMPQ connection', function () {
         });
     });
 
-    after(async () => {
-       await rabbitMQ.close() ;
+    afterEach(async () => {
+        await rabbitMQ.close();
     });
 });

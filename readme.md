@@ -1,21 +1,31 @@
-RabbitMQ 
+message-broker-lib 
 ===========
- RabbitMQ - an AMQP client for NodeJS
+Connection management for amqplib. This is a wrapper around `amqplib` and `amqp-connection-manager` which provides automatic reconnects. 
+Responses are always objects returning `error` or `data`
+
+
+## Features
+- Uses `amqp-connection-manager` for connection management
+- Easy Installation and Use
+- Simple Exposed Functions
+- Clear Error Response
 
 ## Installation
 ```json
 "dependencies": {
-    "message-broker-lib": "^0.0.6"
+    "message-broker-lib": "^1.0.0"
 }
 ```
 ```npm install message-broker-lib```
 
 ## Initialization
 ```javascript
-const broker = require('message-broker-lib');
+const broker = require('message-broker-lib').RabbitMQ;
 //when initializing RabbitMQ, pass in the url
+//When no url is passed, RABBITMQ_CLUSTER_URL and/or RABBITMQ_URL from process.env is used
+//When using cluster, URL should be passed as "amqp://localhost-1,amqp://localhost-2,amqp://localhost-3"
 const connection = await broker.init({
-    rabbitMQURL: "amqp://localhost",
+    url: "amqp://localhost",
     heartbeat: 60 //in seconds
 })
 
@@ -25,8 +35,12 @@ const connection = await broker.init({
 ### Basic functionality
 - Create A Channel
 ```javascript
-//(async/await)
-const channel = await broker.createChannel({});
+const {error, data} = await rabbitMQ.createChannel((channel) => {
+    return Promise.all([
+        //all queue and exchange assertions and creation that needs tobe done, can be done here.
+        channel.assertQueue(channelName, {durable: true})
+    ])
+});
 ```
 
 - Create A Queue
@@ -40,10 +54,10 @@ const {error, data} = await broker.createQueue(channelName, {
 ```javascript
 //(async/await)
 const payload = {
-            timestamp: Date.now(),
-            name: "A Name",
-            email: "Email"
-        };
+    timestamp: Date.now(),
+    name: "A Name",
+    email: "Email"
+};
 const {error, data} = await broker.queue(channelName, payload, {persistent: true});
 
 ```
@@ -79,7 +93,7 @@ console.log({queue});
 -- To listen to a queue and pull data for processing
 ```javascript
 //(async/await)
-
+const prefetch = 1;
 rabbitMQ.listen(channelName,{
     noAck: false // listen options:checkout https://www.rabbitmq.com for more options
 }, (error, raw, channel) => {
@@ -87,10 +101,10 @@ rabbitMQ.listen(channelName,{
     const objectPayload = JSON.parse(stringPayload);
     //....process payload .../
     channel.ack(payload); //acknowledge that processing has been done and remove from queue
-});
+}, prefetch);
 
 //Warning: If you enable acknowledgement {noAck: false}, the next data on the queue 
-//won't be released by the queue until  the current data is acknowledge.
+//won't be released by the queue until the current data is acknowledge.
 ```
 
 -- To close a connection

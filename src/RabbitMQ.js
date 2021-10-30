@@ -1,13 +1,10 @@
 "use strict";
-
-const amqp = require('amqplib');
-const debug = require("debug")("app:debug");
+const amqpConnectionManager = require('amqp-connection-manager');
 
 class RabbitMQ {
     constructor() {
         this.connection = null;
         this.channel = null;
-        this.channelName = null;
         this.retryCountBeforeExit = 10;
         this.init = this.init.bind(this);
         this.createChannel = this.createChannel.bind(this);
@@ -27,13 +24,18 @@ class RabbitMQ {
      * @return {Promise<null|*|undefined>}
      */
     async init(options = {}) {
-        let {rabbitMQURL, heartbeat = 60} = options;
+        let {url = process.env.RABBITMQ_CLUSTER_URL || process.env.RABBITMQ_URL, heartbeat = 5} = options;
+
         try{
             if(!rabbitMQURL)
                 throw Error("RabbitMQ URL is required");
 
-            rabbitMQURL = `${rabbitMQURL}?heartbeat=${heartbeat}`;
-            this.connection = await amqp.connect(rabbitMQURL);
+            //We are splitting the URL because of clusters
+            url = url.split(",");
+            this.connection = amqpConnectionManager.connect(rabbitMQURL, {
+                heartbeatIntervalInSeconds: heartbeat
+            });
+
             return this.connection;
         }catch (e) {
             if(!this.retryCountBeforeExit) {
@@ -48,12 +50,17 @@ class RabbitMQ {
     }
 
 
-    async createChannel(options = {}) {
+    async createChannel(callback) {
         if (!this.connection)
             throw Error("Connection has not been made. Call the init function first");
 
         try{
-            this.channel = await this.connection.createChannel();
+            const options = {
+                json: true,
+            }
+
+            if(typeof callback == "function") options.setup = callback;
+            this.channel = this.connection.createChannel(options);
             return {data: this.channel};
         }catch (e) {
             console.error(e);
@@ -77,16 +84,24 @@ class RabbitMQ {
             }
             for(let name of queueName){
                 if(!name || name.trim() == "") return {error: "Queue Name Cannot Be Empty"};
-                await this.channel.assertQueue(name, options);
+
+                const res = await this.channel.assertQueue(name, options);
+                console.log("REs", name, res)
             }
             return {data: true};
-
         }catch (e) {
             console.error(e);
             return {error: e.message};
         }
     }
 
+    /**
+     *
+     * @param {string} channelName
+     * @param {*} payload
+     * @param {object} options
+     * @returns {Promise<{data: *}|{error}>}
+     */
     async queue(channelName, payload, options = {persistent: true}) {
         try{
             if (!payload) throw new Error("Empty Payload");
@@ -118,13 +133,14 @@ class RabbitMQ {
      *
      * @param {string} exchangeName
      * @param {string} queueName
-     * @param {string} queueOption
-     * @param {string} routingKey
+     * @param {Object} queueOption
+     * @param {string} bindKey
      * @return {Promise<{data: *}|{error: *}>}
      */
     async assertQueue(exchangeName, queueName = "", queueOption = {}, bindKey = ''){
         try{
             let queue = await this.channel.assertQueue(queueName, queueOption);
+            console.log("Queue", queue)
             return {data: await this.channel.bindQueue(queue.queue, exchangeName, bindKey)};
         }catch (e) {
             console.error(e);
@@ -137,12 +153,13 @@ class RabbitMQ {
      * @param {string} exchangeName
      * @param {string} routeKey
      * @param {string} payload
-     * @return {{headers, ticket: undefined, messageId, clusterId: undefined, priority, type, mandatory: boolean, userId, immediate: boolean, deliveryMode, appId, replyTo, contentEncoding, exchange: *, correlationId, expiration, contentType, routingKey: *, timestamp}}
+     * @return Promise<*>
      */
     async publish(exchangeName, routeKey = "", payload) {
         try{
             return {data: await this.channel.publish(exchangeName, routeKey, Buffer.from(JSON.stringify(payload)))};
         }catch (e) {
+
             console.error(e);
             return {error: e.message};
         }
@@ -162,9 +179,12 @@ class RabbitMQ {
                 throw  new Error("Callback must be a function");
 
             //rabbitmq specification: a channel per queue
-            const channel = await this.connection.createChannel();
+            const channel = await this.connection.createChannel({
+                setup: (channel) => {
+                    return channel.prefetch(prefetch);
+                }
+            });
 
-            channel.prefetch(prefetch);
             channel.consume(channelName, (payload) => {
                 return callback(null, payload, channel);
             }, options);
@@ -184,7 +204,7 @@ class RabbitMQ {
                 // return;
             }
             try {
-                debug("Listening");
+                console.log("================== Listening =====================");
                 let {queue, reason, payload, ...rest} = JSON.parse(raw.content.toString());
                 console.log("Queue", queue, reason);
                 if (!queue) return channel.ack(raw);
@@ -202,7 +222,7 @@ class RabbitMQ {
     close() {
         setTimeout(() => {
             if (this.connection) {
-                debug("Closing AMPQ Connection");
+                console.log("Closing AMPQ Connection");
                 try {
                     return this.connection.close();
                 }
