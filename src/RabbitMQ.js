@@ -27,12 +27,12 @@ class RabbitMQ {
         let {url = process.env.RABBITMQ_CLUSTER_URL || process.env.RABBITMQ_URL, heartbeat = 5} = options;
 
         try{
-            if(!rabbitMQURL)
+            if(!url)
                 throw Error("RabbitMQ URL is required");
 
             //We are splitting the URL because of clusters
             url = url.split(",");
-            this.connection = amqpConnectionManager.connect(rabbitMQURL, {
+            this.connection = amqpConnectionManager.connect(url, {
                 heartbeatIntervalInSeconds: heartbeat
             });
 
