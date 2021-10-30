@@ -18,7 +18,7 @@ class RabbitMQ {
     /**
      *
      * @param {Object} options
-     * @param {string} options.rabbitMQURL
+     * @param {string} options.url
      * @param {number} options.retryCountBeforeExit
      * @param {number} options.heartbeat
      * @return {Promise<null|*|undefined>}
@@ -85,8 +85,7 @@ class RabbitMQ {
             for(let name of queueName){
                 if(!name || name.trim() == "") return {error: "Queue Name Cannot Be Empty"};
 
-                const res = await this.channel.assertQueue(name, options);
-                console.log("REs", name, res)
+                await this.channel.assertQueue(name, options);
             }
             return {data: true};
         }catch (e) {
@@ -105,8 +104,7 @@ class RabbitMQ {
     async queue(channelName, payload, options = {persistent: true}) {
         try{
             if (!payload) throw new Error("Empty Payload");
-            if(typeof payload != "string") payload = JSON.stringify(payload);
-            return {data: await this.channel.sendToQueue(channelName, Buffer.from(payload) , options)};
+            return {data: await this.channel.sendToQueue(channelName, payload , options)};
         }catch (e) {
             console.error(e);
             return {error: e.message};
@@ -140,7 +138,6 @@ class RabbitMQ {
     async assertQueue(exchangeName, queueName = "", queueOption = {}, bindKey = ''){
         try{
             let queue = await this.channel.assertQueue(queueName, queueOption);
-            console.log("Queue", queue)
             return {data: await this.channel.bindQueue(queue.queue, exchangeName, bindKey)};
         }catch (e) {
             console.error(e);
@@ -189,8 +186,6 @@ class RabbitMQ {
                 return callback(null, payload, channel);
             }, options);
         }catch (e) {
-            console.error("hereeee",e);
-            console.log("channelName",channelName);
             callback(e.message);
         }
     }
