@@ -154,10 +154,10 @@ class RabbitMQ {
      */
     async publish(exchangeName, routeKey = "", payload) {
         try{
-            return {data: await this.channel.publish(exchangeName, routeKey, Buffer.from(JSON.stringify(payload)))};
+            return {data: await this.channel.publish(exchangeName, routeKey, payload)};
         }catch (e) {
-
             console.error(e);
+
             return {error: e.message};
         }
     }
