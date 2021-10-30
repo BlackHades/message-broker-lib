@@ -2,7 +2,7 @@
   "name": "message-broker-lib",
   "version": "1.0.0",
   "description": "This is a simplified version of amqp javascript library",
-  "main": "src/RabbitMQ.js",
+  "main": "index.js",
   "scripts": {
     "test": "jest --verbose -c jest.config.js"
   },
