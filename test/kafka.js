@@ -1,28 +1,20 @@
 "use strict";
 require("dotenv").config();
-const RabbitMQ = require("../index").Kafka
-const rabbitMQ = new RabbitMQ();
+const Broker = require("../index").Kafka
+const broker = new Broker();
 
 const channelName = "test-channel";
+let exchangeName = "test-exchange";
 
 describe('# Test AMPQ connection', function () {
     let channel = null;
     let connection = null;
     beforeEach(async function () {
-        connection = await rabbitMQ.init();
-        const {error, data} = await rabbitMQ.createChannel((channel) => {
-            return Promise.all([
-                channel.assertQueue(channelName, {durable: true})
-            ])
-        });
-
-        if (error) throw error;
-        channel = data;
+        connection = await broker.init();
     });
 
-    it("Should Create A Channel", async () => {
+    it("Should Create A connection", async () => {
         expect(connection).not.toBe(null);
-        expect(channel).not.toBe(null);
     });
 
     it("Should Create a  Queue", async () => {

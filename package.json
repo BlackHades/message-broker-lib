@@ -17,11 +17,11 @@
   "license": "ISC",
   "devDependencies": {
     "dotenv": "^10.0.0",
-    "jest": "^27.3.1",
-    "uuid": "^3.3.3"
+    "jest": "^27.3.1"
   },
   "dependencies": {
     "amqp-connection-manager": "^3.7.0",
-    "amqplib": "^0.8.0"
+    "amqplib": "^0.8.0",
+    "kafkajs": "^1.15.0"
   }
 }
