@@ -148,7 +148,7 @@ describe('# Test Kafka connection', function () {
             email: "Email"
         };
         await broker.createProducer();
-        const {error, data} = await broker.publish(channelName, payload);
+        const {error, data} = await broker.publish("payments", "payments", payload);
         expect(connection).not.toBe(null);
         expect(error).toBe(undefined)
         expect(data).not.toBe(true)

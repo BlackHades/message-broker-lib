@@ -29,10 +29,9 @@ class RabbitMQ {
             if (!url) throw Error("KAFKA URL is required");
 
             //We are splitting the URL because of clusters
-            url = url.split(",");
             const kafkaConfig = {
                 clientId: name,
-                brokers: url,
+                brokers: url.split(","),
                 ssl: true,
                 sasl: {
                     mechanism: 'plain', // scram-sha-256 or scram-sha-512
@@ -57,7 +56,7 @@ class RabbitMQ {
             }
             this.retryCountBeforeExit -= 1;
             console.log("retryCountBeforeExit", this.retryCountBeforeExit);
-            console.log("Reconnecting RabbitMQ", e);
+            console.log("Reconnecting Kafka", e);
             return this.init(options);
         }
     }
@@ -76,7 +75,6 @@ class RabbitMQ {
 
             const kafkaTopics = [];
             for (let topic of topics) {
-                console.log("Top", topic)
                 if (!topic || topic.trim() === "") return {error: "Queue Name Cannot Be Empty"};
                 kafkaTopics.push({
                     topic,
@@ -86,7 +84,6 @@ class RabbitMQ {
                 })
             }
 
-            console.log("kafkaTopics", kafkaTopics)
 
             await admin.createTopics({
                 topics: kafkaTopics,
@@ -194,23 +191,20 @@ class RabbitMQ {
 
 
     requeueDeadLetter(deadLetterQueueName, queueOptions = {}, callbackFn) {
-        this.listen(deadLetterQueueName, queueOptions, async (error, raw, channel) => {
+        this.listen(deadLetterQueueName, deadLetterQueueName, async (error, message, arg) => {
             if (error) {
                 console.log(`=================== Error from  ${deadLetterQueueName} ==================`);
-                throw Error(error);
-                // return;
+                return;
             }
             try {
                 console.log("================== Listening =====================");
-                let {queue, reason, payload, ...rest} = JSON.parse(raw.content.toString());
+                let {queue, reason, payload, ...rest} = JSON.parse(message);
                 console.log("Queue", queue, reason);
-                if (!queue) return channel.ack(raw);
-                await this.queue(queue, payload, {persistent: true});
-                return channel.ack(raw);
+                if (!queue) return;
+                await this.publish(queue,queue, payload);
             } catch (e) {
                 console.log(e, JSON.stringify(e));
-                await this.queue(deadLetterQueueName, JSON.parse(raw.content.toString()), {persistent: true});
-                return channel.ack(raw);
+                await this.publish(deadLetterQueueName,deadLetterQueueName, message,);
             }
         }, parseInt(queueOptions?.prefetch || 1));
 
