@@ -127,7 +127,7 @@ class RabbitMQ {
             return {
                 data: await this.producer.send({
                     topic,
-                    messages: [{value: JSON.stringify(payload)}]
+                    messages: [{value: JSON.stringify(payload), key}]
                 })
             };
         } catch (e) {
