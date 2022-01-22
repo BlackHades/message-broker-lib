@@ -116,15 +116,17 @@ class RabbitMQ {
 
     /**
      *
-     * @param {string} eventName
+     * @param {string} topic
+     * @param {string} key
      * @param {any} payload
      * @return Promise<*>
      */
-    async publish(eventName, payload) {
+    async publish(topic, key, payload) {
         try {
+            key = key || key;
             return {
                 data: await this.producer.send({
-                    topic: eventName,
+                    topic,
                     messages: [{value: JSON.stringify(payload)}]
                 })
             };

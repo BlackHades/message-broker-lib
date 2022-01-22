@@ -12,7 +12,7 @@ Responses are always objects returning `error` or `data`
 ## Installation
 ```json
 "dependencies": {
-    "message-broker-lib": "^2.0.0"
+    "message-broker-lib": "^2.0.1"
 }
 ```
 ```npm install message-broker-lib```
@@ -43,7 +43,7 @@ const payload = {
     email: "Email"
 };
 await broker.createProducer();
-const {error, data} = await broker.publish(channelName, payload);
+const {error, data} = await broker.publish(topic, key, payload);
 ```
 
 
