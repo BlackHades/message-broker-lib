@@ -6,8 +6,10 @@ class RabbitMQ {
         this.connection = null;
         this.retryCountBeforeExit = 10;
         this.producer = null;
+        this.consumer = null;
 
         this.init = this.init.bind(this);
+        this.createTopics = this.createTopics.bind(this);
         this.publish = this.publish.bind(this);
         this.listen = this.listen.bind(this);
     }
@@ -24,14 +26,19 @@ class RabbitMQ {
         let {url = process.env.KAFKA_CLUSTER_URL, heartbeat = 5, name = process.env.APP_NAME} = options;
 
         try {
-            if (!url)
-                throw Error("KAFKA URL is required");
+            if (!url) throw Error("KAFKA URL is required");
 
             //We are splitting the URL because of clusters
             url = url.split(",");
-            this.connection = new Kafka({
+            const kafkaConfig = {
                 clientId: name,
-                brokers: url.split(","),
+                brokers: url,
+                ssl: true,
+                sasl: {
+                    mechanism: 'plain', // scram-sha-256 or scram-sha-512
+                    username: process.env.KAFKA_SASL_USERNAME,
+                    password: process.env.KAFKA_SASL_PASSWORD
+                },
                 connectionTimeout: parseInt(process.env.KAFKA_CONNECTION_TIMEOUT || 3000),
                 requestTimeout: parseInt(process.env.KAFKA_REQUEST_TIMEOUT || 25000),
                 logLevel: parseInt(process.env.KAFKA_LOG_LEVEL || logLevel.INFO),
@@ -39,7 +46,8 @@ class RabbitMQ {
                     initialRetryTime: 100,
                     retries: 10,
                 }
-            })
+            };
+            this.connection = new Kafka(kafkaConfig)
 
             return this.connection;
         } catch (e) {
@@ -54,6 +62,42 @@ class RabbitMQ {
         }
     }
 
+    async createTopics(topics) {
+        if (!this.connection)
+            throw Error("Connection has not been initialized. Call the init function first");
+
+        try {
+            const admin = this.connection.admin();
+            await admin.connect();
+
+            if (!Array.isArray(topics)) {
+                topics = [topics];
+            }
+
+            const kafkaTopics = [];
+            for (let topic of topics) {
+                console.log("Top", topic)
+                if (!topic || topic.trim() === "") return {error: "Queue Name Cannot Be Empty"};
+                kafkaTopics.push({
+                    topic,
+                    numPartitions: 6,
+                    replicationFactor: 3,
+                    configEntries:[{ name: 'cleanup.policy', value: 'compact' },{name: "retention.ms", value: "-1"}]
+                })
+            }
+
+            console.log("kafkaTopics", kafkaTopics)
+
+            await admin.createTopics({
+                topics: kafkaTopics,
+            });
+            return {data: true};
+        } catch (e) {
+            console.error(e);
+            return {error: e.message};
+        }
+    }
+
     async createProducer() {
 
         if (!this.connection)
@@ -61,6 +105,7 @@ class RabbitMQ {
 
         try {
             this.producer = this.connection.producer()
+            await this.producer.connect()
             return {data: this.producer};
         } catch (e) {
             console.error(e);
@@ -69,19 +114,18 @@ class RabbitMQ {
     }
 
 
-
     /**
      *
      * @param {string} eventName
-     * @param {string} payload
+     * @param {any} payload
      * @return Promise<*>
      */
-    async publish(eventName,  payload) {
+    async publish(eventName, payload) {
         try {
             return {
                 data: await this.producer.send({
                     topic: eventName,
-                    messages: [{value: payload}]
+                    messages: [{value: JSON.stringify(payload)}]
                 })
             };
         } catch (e) {
@@ -93,27 +137,54 @@ class RabbitMQ {
 
     /**
      *
-     * @param {string} channelName
-     * @param {Object} options
+     * @param {string[]} topics
+     * @param {string} groupId
      * @param {function} callback
+     * @param fromBeginning
      * @param {number} prefetch
      * @return {null}
      */
-    async listen(channelName, options = {}, callback = null, prefetch = 1) {
+    async listen(topics, groupId, callback = null, fromBeginning = false, prefetch = 1) {
         try {
             if (typeof callback != "function")
                 throw  new Error("Callback must be a function");
 
-            //rabbitmq specification: a channel per queue
-            const channel = await this.connection.createChannel({
-                setup: (channel) => {
-                    return channel.prefetch(prefetch);
-                }
-            });
 
-            channel.consume(channelName, (payload) => {
-                return callback(null, payload, channel);
-            }, options);
+            this.consumer = this.connection.consumer({ groupId });
+            await this.consumer.connect()
+
+            for(let topic of topics){
+                await this.consumer.subscribe({topic, fromBeginning });
+            }
+
+
+            await this.consumer.run({
+                partitionsConsumedConcurrently: prefetch,
+                eachMessage: async ({ topic, partition, message }) => {
+                    try {
+                        console.log({
+                            topic,
+                            partition,
+                            key: message?.key?.toString(),
+                            value: message.value.toString(),
+                            headers: message.headers,
+                        })
+                        return callback(null, message.value.toString(), {
+                            topic,
+                            partition,
+                            key: message?.key?.toString(),
+                            value: message.value.toString(),
+                            headers: message.headers,
+                        });
+                    } catch (e) {
+                        console.log("Kafka consumer error", e)
+                        this.consumer.pause([{ topic }])
+                        setTimeout(() => this.consumer.resume([{ topic }]), (e.retryAfter || 50) * 1000);
+                        return callback(e.message);
+                    }
+
+                },
+            })
         } catch (e) {
             callback(e.message);
         }

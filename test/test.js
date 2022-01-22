@@ -1,9 +1,9 @@
 "use strict";
 require("dotenv").config();
-const RabbitMQ = require("../index").Kafka
+const RabbitMQ = require("../index").RabbitMQ
 const rabbitMQ = new RabbitMQ();
 
-const channelName = "test-channel";
+const channelName = "test-topic";
 
 describe('# Test AMPQ connection', function () {
     let channel = null;
@@ -102,6 +102,68 @@ describe('# Test AMPQ connection', function () {
             expect(channel).to.not.be.null;
         });
     });
+
+    afterEach(async () => {
+        await rabbitMQ.close();
+    });
+});
+
+
+
+const Kafka = require("../index").Kafka
+const broker = new Kafka();
+describe('# Test Kafka connection', function () {
+    let channel = null;
+    let connection = null;
+    beforeEach(async function () {
+        connection = await broker.init();
+    });
+
+    it("Should Create A connection", async () => {
+        expect(connection).not.toBe(null);
+    });
+
+    it("Should Create a  Topic", async () => {
+        const {error, data} = await broker.createTopics(["user.created","user.updated"]);
+        console.log("Payload", data);
+        expect(connection).not.toBe(null);
+        expect(error).toBe(undefined)
+        expect(data).toBe(true)
+    });
+
+
+    it("Should Create a  producer", async () => {
+        const {error, data} = await broker.createProducer();
+        console.log("Payload", data);
+        expect(connection).not.toBe(null);
+        expect(error).toBe(undefined)
+        expect(data).not.toBe(null)
+    });
+
+
+    it("Should Publish Message", async () => {
+        const payload = {
+            timestamp: Date.now(),
+            name: "A Name",
+            email: "Email"
+        };
+        await broker.createProducer();
+        const {error, data} = await broker.publish(channelName, payload);
+        expect(connection).not.toBe(null);
+        expect(error).toBe(undefined)
+        expect(data).not.toBe(true)
+    });
+
+    it("Should listen for data coming into the queue", async () => {
+        broker.listen(["user.created"], "users-9", (error, payload, args) => {
+            expect(payload).not.toBe(null);
+            expect(error).toBe(null);
+        }, true);
+
+        await new Promise(resolve => setTimeout(resolve, 90000));
+
+    });
+
 
     afterEach(async () => {
         await rabbitMQ.close();
