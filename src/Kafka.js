@@ -1,7 +1,7 @@
 "use strict";
 const {Kafka, logLevel} = require('kafkajs')
 
-class RabbitMQ {
+class KafkaJS {
     constructor() {
         this.connection = null;
         this.retryCountBeforeExit = 10;
@@ -32,12 +32,6 @@ class RabbitMQ {
             const kafkaConfig = {
                 clientId: name,
                 brokers: url.split(","),
-                ssl: true,
-                sasl: {
-                    mechanism: 'plain', // scram-sha-256 or scram-sha-512
-                    username: process.env.KAFKA_SASL_USERNAME,
-                    password: process.env.KAFKA_SASL_PASSWORD
-                },
                 connectionTimeout: parseInt(process.env.KAFKA_CONNECTION_TIMEOUT || 3000),
                 requestTimeout: parseInt(process.env.KAFKA_REQUEST_TIMEOUT || 25000),
                 logLevel: parseInt(process.env.KAFKA_LOG_LEVEL || logLevel.INFO),
@@ -46,6 +40,15 @@ class RabbitMQ {
                     retries: 10,
                 }
             };
+
+            if (process.env.KAFkA_USE_SSL) {
+                kafkaConfig.ssl = true;
+                kafkaConfig.sasl = {
+                    mechanism: 'plain', // scram-sha-256 or scram-sha-512
+                    username: process.env.KAFKA_SASL_USERNAME,
+                    password: process.env.KAFKA_SASL_PASSWORD
+                };
+            }
             this.connection = new Kafka(kafkaConfig)
 
             return this.connection;
@@ -61,6 +64,20 @@ class RabbitMQ {
         }
     }
 
+    /**
+     * @typedef {object} Topic
+     * @property {string} name
+     * @property {number} numberOfPartitions
+     * @property {number} replicationFactor
+     * @property {string} retentionPolicy
+     * @property {string} cleanUpPolicy
+     *
+     */
+    /**
+     *
+     * @param {Topic[]} topics
+     * @return {Promise<{error: string}|{data: boolean}|{error}>}
+     */
     async createTopics(topics) {
         if (!this.connection)
             throw Error("Connection has not been initialized. Call the init function first");
@@ -75,12 +92,26 @@ class RabbitMQ {
 
             const kafkaTopics = [];
             for (let topic of topics) {
-                if (!topic || topic.trim() === "") return {error: "Queue Name Cannot Be Empty"};
+                if (typeof topic == "string") {
+                    if (!topic || topic.trim() === "") return {error: "Topic Name Cannot Be Empty"};
+                    topic = {
+                        name: topic
+                    }
+                }
+
+                if (!topic.name || topic.name.trim() === "") return {error: "Topic Name Cannot Be Empty"};
+
                 kafkaTopics.push({
                     topic,
-                    numPartitions: 6,
-                    replicationFactor: 3,
-                    configEntries:[{ name: 'cleanup.policy', value: 'compact' },{name: "retention.ms", value: "-1"}]
+                    numPartitions: topic.numberOfPartitions || 6,
+                    replicationFactor: topic.replicationFactor || 3,
+                    configEntries: [{
+                        name: 'cleanup.policy',
+                        value: topic.cleanUpPolicy || 'compact'
+                    }, {
+                        name: "retention.ms",
+                        value: topic.retentionPolicy || "-1"
+                    }]
                 })
             }
 
@@ -149,17 +180,17 @@ class RabbitMQ {
                 throw  new Error("Callback must be a function");
 
 
-            this.consumer = this.connection.consumer({ groupId });
+            this.consumer = this.connection.consumer({groupId});
             await this.consumer.connect()
 
-            for(let topic of topics){
-                await this.consumer.subscribe({topic, fromBeginning });
+            for (let topic of topics) {
+                await this.consumer.subscribe({topic, fromBeginning});
             }
 
 
             await this.consumer.run({
                 partitionsConsumedConcurrently: prefetch,
-                eachMessage: async ({ topic, partition, message }) => {
+                eachMessage: async ({topic, partition, message}) => {
                     try {
                         console.log({
                             topic,
@@ -177,8 +208,8 @@ class RabbitMQ {
                         });
                     } catch (e) {
                         console.log("Kafka consumer error", e)
-                        this.consumer.pause([{ topic }])
-                        setTimeout(() => this.consumer.resume([{ topic }]), (e.retryAfter || 50) * 1000);
+                        this.consumer.pause([{topic}])
+                        setTimeout(() => this.consumer.resume([{topic}]), (e.retryAfter || 50) * 1000);
                         return callback(e.message);
                     }
 
@@ -201,10 +232,10 @@ class RabbitMQ {
                 let {queue, reason, payload, ...rest} = JSON.parse(message);
                 console.log("Queue", queue, reason);
                 if (!queue) return;
-                await this.publish(queue,queue, payload);
+                await this.publish(queue, queue, payload);
             } catch (e) {
                 console.log(e, JSON.stringify(e));
-                await this.publish(deadLetterQueueName,deadLetterQueueName, message,);
+                await this.publish(deadLetterQueueName, deadLetterQueueName, message,);
             }
         }, parseInt(queueOptions?.prefetch || 1));
 
@@ -226,4 +257,4 @@ class RabbitMQ {
 
 }
 
-module.exports = RabbitMQ;
+module.exports = KafkaJS;

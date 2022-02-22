@@ -124,7 +124,9 @@ describe('# Test Kafka connection', function () {
     });
 
     it("Should Create a  Topic", async () => {
-        const {error, data} = await broker.createTopics(["user.created","user.updated"]);
+        const {error, data} = await broker.createTopics([{
+            name:"users"
+        }]);
         console.log("Payload", data);
         expect(connection).not.toBe(null);
         expect(error).toBe(undefined)

@@ -12,7 +12,7 @@ Responses are always objects returning `error` or `data`
 ## Installation
 ```json
 "dependencies": {
-    "message-broker-lib": "^2.0.3"
+    "message-broker-lib": "^2.1.0"
 }
 ```
 ```npm install message-broker-lib```
@@ -21,8 +21,8 @@ Responses are always objects returning `error` or `data`
 ```javascript
 const broker = require('message-broker-lib').Kafka;
 //when initializing RabbitMQ, pass in the url
-//When no url is passed, RABBITMQ_CLUSTER_URL and/or RABBITMQ_URL from process.env is used
-//When using cluster, URL should be passed as "amqp://localhost-1,amqp://localhost-2,amqp://localhost-3"
+//When no url is passed, KAFKA_CLUSTER_URL from process.env is used
+//When using cluster, URL should be passed as "localhost-1,localhost-2,localhost-3"
 const connection = await broker.init()
 
 ```
@@ -31,7 +31,11 @@ const connection = await broker.init()
 ### Basic functionality
 - Create A Topic
 ```javascript
-const {error, data} = await broker.createTopics(["users","payments"]);
+const {error, data} = await broker.createTopics([{
+    name: "users",
+    replicationFactor: 1,
+    numberOfPartitions: 3
+}]);
 ```
 
 - Produce a message
