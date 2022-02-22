@@ -1,6 +1,6 @@
 {
   "name": "message-broker-lib",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "This is a simplified version of amqp javascript library",
   "main": "index.js",
   "scripts": {

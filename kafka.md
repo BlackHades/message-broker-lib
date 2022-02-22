@@ -12,7 +12,7 @@ Responses are always objects returning `error` or `data`
 ## Installation
 ```json
 "dependencies": {
-    "message-broker-lib": "^2.1.1"
+    "message-broker-lib": "^2.1.2"
 }
 ```
 ```npm install message-broker-lib```

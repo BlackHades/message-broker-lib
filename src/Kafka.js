@@ -103,8 +103,8 @@ class KafkaJS {
 
                 kafkaTopics.push({
                     topic: topic.name,
-                    numPartitions: topic.numberOfPartitions || 6,
-                    replicationFactor: topic.replicationFactor || 3,
+                    numPartitions: topic.numberOfPartitions || 1,
+                    replicationFactor: topic.replicationFactor || 1,
                     configEntries: [{
                         name: 'cleanup.policy',
                         value: topic.cleanUpPolicy || 'compact'
