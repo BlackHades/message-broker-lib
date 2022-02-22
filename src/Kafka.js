@@ -102,7 +102,7 @@ class KafkaJS {
                 if (!topic.name || topic.name.trim() === "") return {error: "Topic Name Cannot Be Empty"};
 
                 kafkaTopics.push({
-                    topic,
+                    topic: topic.name,
                     numPartitions: topic.numberOfPartitions || 6,
                     replicationFactor: topic.replicationFactor || 3,
                     configEntries: [{
