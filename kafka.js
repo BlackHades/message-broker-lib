@@ -21,7 +21,6 @@ const kafka = new Kafka({
 async function produce(){
     const admin = kafka.admin()
     await admin.connect()
-
     await admin.createTopics({
         waitForLeaders: true,
         topics: [

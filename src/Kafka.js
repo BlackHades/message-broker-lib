@@ -41,7 +41,7 @@ class KafkaJS {
                 }
             };
 
-            if (process.env.KAFkA_USE_SSL) {
+            if (process.env.KAFKA_USE_SSL) {
                 kafkaConfig.ssl = true;
                 kafkaConfig.sasl = {
                     mechanism: 'plain', // scram-sha-256 or scram-sha-512
